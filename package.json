@@ -1,0 +1,25 @@
+{
+  "name": "fbparser",
+  "version": "1.0.0",
+  "description": "Parse facebook posts",
+  "main": "index.js",
+  "scripts": {
+    "build": "webpack --config webpack.config.dev.js && cp build/fbparser.js test/chrome-extention/js/fbparser.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/vvstdung89/fbparser.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/vvstdung89/fbparser/issues"
+  },
+  "homepage": "https://github.com/vvstdung89/fbparser#readme",
+  "devDependencies": {
+    "webpack": "^3.1.0"
+  },
+  "dependencies": {
+    "cheerio": "^1.0.0-rc.2"
+  }
+}
