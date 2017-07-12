@@ -20595,7 +20595,7 @@ Parser.prototype.getGroupInfo = function(){
 		if ($('meta[property="al:android:url"]').eq(0).attr('content')){
 			groupID = $('meta[property="al:android:url"]').eq(0).attr('content').replace('fb://group/', '')
 		}
-		if (!groupID){
+		if (!groupID && isNaN(groupID)){
 			groupID = $('input[name="group_id"]').val()
 		}
 
@@ -20641,7 +20641,8 @@ Parser.prototype.getPostId = function($post){
 	return postId
 }
 
-Parser.prototype.getFullPostID = function(groupInfo, postAuthor, postID){
+Parser.prototype.getFullPostID = function(toObject, groupInfo, postAuthor, postID){
+	if (toObject && toObject.id) return toObject.id + "_" + postID
 	if (groupInfo && groupInfo.id) return groupInfo.id + "_" + postID
 	if (postAuthor && postAuthor.id) return postAuthor.id + "_" + postID
 	return null
@@ -20711,34 +20712,35 @@ Parser.prototype.getPostFeedback = function($post){
 
 	} else if (commentText2) {
 		// Text comment feed back (2 of 150 | View 6 more comments)
+		//type 1
 		var regex = /of ([0-9,\.KM]+)/
 		var match = regex.exec(commentText2)
 		if (match)
 			comment = match[1]
 		else {
-
+			// type 2
 			var regex = /([0-9,\.KM]+) more comments/
 			var match = regex.exec(commentText2)
 			if (match){
 				comment = Number(match[1])
 			}
-			
+			//type 3
 			var regex = /View all ([0-9,\.KM]+) comments/
 			var match = regex.exec(commentText2)
 			if (match){
 				comment = Number(match[1])
 			}
-
-			// plus (view 6 more comments) showing comment 
-			if ($post.find('.UFIRow.UFIComment')){
-				var commentShowCnt = $post.find('.UFIRow.UFIComment').toArray().length
-				if (comment) {
-					comment += commentShowCnt
-				} else {
-					comment = commentShowCnt
-				}	
-			}
 		}
+	}
+
+	// plus showing comment 
+	if ($post.find('.UFIRow.UFIComment')){
+		var commentShowCnt = $post.find('.UFIRow.UFIComment').toArray().length
+		if (comment) {
+			comment += commentShowCnt
+		} else {
+			comment = commentShowCnt
+		}	
 	}
 
 	//share info
@@ -20770,23 +20772,60 @@ Parser.prototype.getPostFeedback = function($post){
 }
 
 Parser.prototype.getPostType = function($post){
-	if (this.isGroupPosts()) return "fbGroupTopic"
+	if (this.isGroupPosts()) return {postType:"fbGroupTopic"}
 
 	var firstObjLink = $post.find('.clearfix a').eq(0).attr('data-hovercard');
     if (firstObjLink) {
         if (firstObjLink.indexOf('/ajax/hovercard/page.php') > -1) {
-            return 'fbPageTopic';
+            return {postType:"fbPageTopic"};
         }
     }
 
     //page message
-    var pageMessage = $post.find('.clearfix .fwn.fcg i u').eq(0).text()
+    var pageMessage = $post.find('.clearfix i u').eq(0).text()
     if (pageMessage==="to"){
-        return 'fbPageTopic';
+    	var secondObjLink = $post.find('.clearfix a[data-hovercard]').eq(2).attr('data-hovercard');
+    	var secondObjName = $post.find('.clearfix a[data-hovercard]').eq(2).text();
+    	console.log(secondObjLink + " name: " + secondObjName)
+    	var regxMatch
+	    if (secondObjLink) {
+	        if (secondObjLink.indexOf('/ajax/hovercard/group.php') > -1) {
+	        	if (regxMatch = secondObjLink.match(/id=\d+.*?/g)) {
+					var groupID = regxMatch[0].replace('id=', '');
+			    	var toObject = {
+				        id: groupID,
+				        name: secondObjName
+				    }
+	            	return {postType:"fbGroupTopic", toObject: toObject};
+				}
+	        }
+
+	        if (secondObjLink.indexOf('/ajax/hovercard/page.php') > -1) {
+	        	if (regxMatch = secondObjLink.match(/id=\d+.*?/g)) {
+					var pageID = regxMatch[0].replace('id=', '');
+			    	var toObject = {
+				        id: pageID,
+				        name: secondObjName
+				    }
+	           		return {postType:"fbPageTopic", toObject: toObject};
+				}
+	        }
+
+	        if (secondObjLink.indexOf('/ajax/hovercard/user.php') > -1) {
+	        	if (regxMatch = secondObjLink.match(/id=\d+.*?/g)) {
+					var groupID = regxMatch[0].replace('id=', '');
+			    	var toObject = {
+				        id: groupID,
+				        name: secondObjName
+				    }
+	            	return {postType:"fbUserTopic", toObject: toObject};
+				}
+	        }
+	    }
     }
 
     //otherwise => user
-    return 'fbUserTopic'
+    return {postType:"fbUserTopic"}
 
 }
 
@@ -20817,8 +20856,10 @@ Parser.prototype.parse = function(html){
 		var postID = self.getPostId(self.$(post))
 		var postAuthor = self.getPostAuthor(self.$(post))
 		
+		var {postType, toObject} = self.getPostType(self.$(post))
 
-		var fullPostID = self.getFullPostID(groupInfo, postAuthor, postID)
+		var fullPostID = self.getFullPostID(toObject, groupInfo, postAuthor, postID)
+
 		var message = self.getPostContent(self.$(post))
 		
 
@@ -20829,7 +20870,7 @@ Parser.prototype.parse = function(html){
 		var feedback = self.getPostFeedback(self.$(post))
 		
 
-		var postType = self.getPostType(self.$(post))
+		
 		
 		allPosts.push({
 			createTime: createTime,
